@@ -1,0 +1,352 @@
+﻿@{
+    ViewData["Title"] = "Application Page";
+    Layout = "~/Views/Shared/_LayoutApp.cshtml";
+}
+<link rel="stylesheet" href="~/css/styleApp.css?v=@DateTime.Now.DayOfYear" type="text/css">
+<link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+<input type="text" id="token" hidden>
+<input type="text" id="loanId" hidden>
+
+<div id="tableContent" style="display: block">
+    <table class="table">
+        <thead class="thead-light">
+            <tr>
+                <th scope="col"><a id="newApplication" onclick="OpenApplication(false, 0, false)" class="btn btn-outline-warning dim" title="ნახვა">განაცხადის შევსება</a></th>
+                <th scope="col">სესხის ტიპი</th>
+                <th scope="col">თანხა</th>
+                <th scope="col">ვალუტა</th>
+                <th scope="col">სესხის პერიოდი</th>
+                <th scope="col">სტატუსი</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+</div>
+
+
+<div id="loanAppId" class="loanApp" style="display: none">
+    <div class="container">
+        <div class="title" style="display: Flex; justify-content: space-between;">
+            <div>
+                განაცხადი
+            </div>
+            <input type="button" class="buttons" style="color: black; width: 200px !important; display:block;" id="backward" onclick="clearData()" value="უკან დაბრუნება">
+        </div>
+        <div class="content">
+            <div class="loan-details">
+                <div>
+                    <div class="input-box">
+                        <select id="loanTypeSelect" class="form-select" required style="width: 400px !important;">
+                            
+                        </select>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" aria-label="amount" id="amount" aria-describedby="amount" placeholder="შეიყვანეთ სასურველი თანხა" style="width: 400px !important;">
+                    </div>
+                    <select id="statusSelect" class="form-select" required style="width: 400px !important;">
+
+                    </select>
+                </div>
+
+                <div>
+                    <div class="input-box">
+                        <select id="currencySelect" class="form-select" required style="width: 400px !important;">
+                            <option id="0" value="0"> აირჩიეთ სესხის ვალუტა</option>
+                            <option id="0" value="GEL">GEL</option>
+                            <option id="0" value="USD">USD</option>
+                            <option id="0" value="EUR">EUR</option>
+                        </select>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="date" class="form-control" aria-label="loanPeriod" id="loanPeriod" aria-describedby="loanPeriod" style="width: 400px !important;">
+                    </div>
+
+                    <div class="button">
+                        <input type="button" class="buttons" style="color: black; width: 400px !important; display: block;" id="saveBtn" onclick="addNewApplication()" value="შენახვა">
+                        <input type="button" class="buttons" style="color: black; width: 400px !important; display: none;" id="editBtn" onclick="EditApplication()" value="ჩასწორება">
+                        <input type="button" class="buttons" style="color: black; width: 400px !important; display: none;" id="backBtn" onclick="clearData();" value="უკან დაბრუნება">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+
+<script>
+    $(document).ready(function () {
+        var userId = localStorage.getItem("userId");
+        console.log(userId);
+        var token = localStorage.getItem("token");
+        console.log(token);
+        getData();
+    });
+
+    window.onbeforeunload = function (e) {
+        window.onunload = function () {
+                window.localStorage.token = "";
+        }
+        return undefined;
+    };
+
+    window.onload = function () {
+        if (window.localStorage.token == ""){
+            history.back();
+            alert("აუცილებელია გაიაროთ ავტორიზაცია, თავიდან");
+        }
+    };
+
+    function getData(){
+        $.ajax({
+            url: '/Application/GetUserApplications',
+            type: 'POST',
+            data: {
+                userId: localStorage.getItem("userId"),
+                token: localStorage.getItem("token")
+            },
+            success: function (result) {
+                var rows = '';
+                $('#tableBody').empty();
+                for (var i = 0; i < result.length; i++) {
+                    var seeIcon = `<a id="seeIcon" onclick="OpenApplication(false, ${result[i].id}, true)" class="btn btn-outline-success dim" title="ნახვა"><i class="uil uil-eye"></i></a>`
+                    var editIcon = `<a id="editIcon" onclick="OpenApplication(true, ${result[i].id}, false)" class="btn btn-outline-primary dim" title="ჩასწორება"><i class="uil uil-edit"></i></a>`
+                    var deleteIcon = `<a id="deleteIcon" onclick="DeleteApplication(${result[i].id})" class="btn btn-outline-danger dim" title="წაშლა"><i class="uil uil-trash"></i></a>`
+                    rows += `<tr>
+                                    <th scope="row" style="display: flex;"> ${result[i].status === "დამტკიცებული" || result[i].status === "უარყოფილი" ? seeIcon : seeIcon + editIcon + deleteIcon} </th>
+                                    <td>${result[i].loanType}</td>
+                                    <td>${result[i].amount}</td>
+                                    <td>${result[i].currency}</td>
+                                    <td>${result[i].loanPeriodStr}</td>
+                                    <td>${result[i].status}</td>
+                                </tr>`;
+                }
+                $('#tableBody').append(rows);
+            },
+            error: function (xhr, errorType, exception) {
+                var newTitle = $(xhr.responseText).filter('title').text();
+                alert(newTitle);
+            }
+        })
+    }
+
+    function OpenApplication(isEdit, loanId, isBack) {
+        $.ajax({
+            url: '/Application/getStatuses',
+            type: 'POST',
+            data: { },
+            success: function (result) {
+                $('#statusSelect').empty();
+                var rows = '<option id="0" value="0"> აირჩიეთ სესხის სტატუსი</option>';
+
+                for (var i = 0; i < result.length; i++) {
+                    rows += `
+                            <option id="status${result[i].id}" value="${result[i].id}">${result[i].status}</option>`;
+                }
+                console.log(rows);
+                $('#statusSelect').append(rows);
+
+                $.ajax({
+                    url: '/Application/getLoanTypes',
+                    type: 'POST',
+                    data: { },
+                    success: function (result) {
+                        $('#loanTypeSelect').empty();
+                        var rows = '<option id="0" value="0"> აირჩიეთ სესხის ტიპი</option>';
+
+                        for (var i = 0; i < result.length; i++) {
+                            rows += `
+                                <option id="type${result[i].id}" value="${result[i].id}">${result[i].loanType}</option>`;
+                        }
+                        $('#loanTypeSelect').append(rows);
+
+                        $('#tableContent').css('display', 'none');
+                        $('#loanAppId').css('display', 'block');
+
+                        if(isEdit){
+                            SeeApplication(loanId, true, false)
+                            $('#loanId').val(loanId);
+                            $('#editBtn').css('display', 'block');
+                            $('#saveBtn').css('display', 'none');
+                            $('#backBtn').css('display', 'none');
+                            $('#backward').css('display', 'block');
+                        } else if (isBack) {
+                            $('#editBtn').css('display', 'none');
+                            $('#saveBtn').css('display', 'none');
+                            $('#backBtn').css('display', 'block');
+                            $('#backward').css('display', 'none');
+                            SeeApplication(loanId, false, true)
+                        }else{
+                            $('#saveBtn').css('display', 'block');
+                            $('#editBtn').css('display', 'none');
+                            $('#backBtn').css('display', 'none');
+                            $('#backward').css('display', 'block');
+                        }
+                    },
+                    error: function (xhr, errorType, exception) {
+                        var newTitle = $(xhr.responseText).filter('title').text();
+                        alert(newTitle);
+                    }
+                })
+            },
+            error: function (xhr, errorType, exception) {
+                var newTitle = $(xhr.responseText).filter('title').text();
+                alert(newTitle);
+            }
+        })
+    }
+
+    function clearData(){
+        $('#tableContent').css('display', 'block');
+        $('#loanAppId').css('display', 'none');
+        $('#loanTypeSelect').val("0");
+        $("#amount").val("");
+        $("#currencySelect").val("0");
+        document.getElementById("loanPeriod").value = "";
+        $("#statusSelect").val("0");
+        $('#loanTypeSelect').removeAttr('disabled', 'disabled');
+        $("#amount").removeAttr('disabled', 'disabled');
+        $("#currencySelect").removeAttr('disabled', 'disabled');
+        $("#loanPeriod").removeAttr('disabled', 'disabled');
+        $("#statusSelect").removeAttr('disabled', 'disabled');
+    }
+
+    function SeeApplication(loanId, isEdit, isBack) {
+        $.ajax({
+            url: '/Application/GetUserApplicationById',
+            type: 'POST',
+            data: {
+                userId: localStorage.getItem("userId"),
+                loanId: loanId,
+                token: localStorage.getItem("token")
+            },
+            success: function (result) {
+                $('#loanTypeSelect').val(result.loanTypeId);
+                $("#amount").val(result.amount);
+                $("#currencySelect").val(result.currency);
+                document.getElementById("loanPeriod").value = result.loanPeriodStr
+                $("#statusSelect").val(result.statusId)
+
+                $('#loanTypeSelect').removeAttr('disabled','disabled');
+                $("#amount").removeAttr('disabled', 'disabled');
+                $("#currencySelect").removeAttr('disabled', 'disabled');
+                $("#loanPeriod").removeAttr('disabled', 'disabled');
+                $("#statusSelect").removeAttr('disabled', 'disabled');
+
+                
+                if(isBack){
+                    //$('#tableContent').css('display', 'none');
+                    //$('#loanAppId').css('display', 'block');
+                    $('#loanTypeSelect').attr('disabled','disabled');
+                    $("#amount").attr('disabled', 'disabled');
+                    $("#currencySelect").attr('disabled', 'disabled');
+                    $("#loanPeriod").attr('disabled', 'disabled');
+                    $("#statusSelect").attr('disabled', 'disabled');
+                }
+            },
+            error: function (xhr, errorType, exception) {
+                var newTitle = $(xhr.responseText).filter('title').text();
+                alert(newTitle);
+            }
+        })
+    }
+
+    function addNewApplication(){
+        if ($('#loanTypeSelect').find(":selected").val() === 0 || localStorage.getItem("userId") === 0 || $("#amount").val() === '' || $("#currencySelect").find(":selected").val() === 0 || $("#loanPeriod").val() === '' || $("#statusSelect").find(":selected").val() === 0) {
+            alert("გთხოვთ შეავსოთ ყველა მოცემული ველი");
+        } else{
+            let loan = {
+                loanTypeId: $('#loanTypeSelect').find(":selected").val(),
+                userId: localStorage.getItem("userId"),
+                amount: $("#amount").val(),
+                currency: $("#currencySelect").find(":selected").val(),
+                loanPeriod: $("#loanPeriod").val(),
+                statusId: $("#statusSelect").find(":selected").val(),
+            };
+            $.ajax({
+                url: '/Application/AddNewApplication',
+                type: 'POST',
+                data: {
+                    loan: loan,
+                    token: localStorage.getItem("token")
+                },
+                success: function (result) {
+                    if (result != null) {
+                        alert("ოპერაცია წარმატებით დასრულდა");
+                        getData()
+                        clearData()
+                    } else {
+                        alert("განაცხადის შენახვა ვერ მოხერხდა, გთხოვთ სცადოთ თავიდან");
+                    }
+                    console.log(result);
+                },
+                error: function (xhr, errorType, exception) {
+                    var newTitle = $(xhr.responseText).filter('title').text();
+                    alert(newTitle);
+                }
+            })
+        }
+    }
+
+    function EditApplication() {
+        let loan = {
+            Id: $('#loanId').val(),
+            loanTypeId: $('#loanTypeSelect').find(":selected").val(),
+            userId: localStorage.getItem("userId"),
+            amount: $("#amount").val(),
+            currency: $("#currencySelect").find(":selected").val(),
+            loanPeriod: $("#loanPeriod").val(),
+            statusId: $("#statusSelect").find(":selected").val(),
+        };
+        $.ajax({
+            url: '/Application/EditApplication',
+            type: 'POST',
+            data: {
+                loan: loan,
+                token: localStorage.getItem("token")
+            },
+            success: function (result) {
+                if (result != null) {
+                    alert("ოპერაცია წარმატებით დასრულდა");
+                    getData()
+                    clearData()
+                } else {
+                    alert("განაცხადის რედაქტირება ვერ მოხერხდა, გთხოვთ სცადოთ თავიდან");
+                }
+                console.log(result);
+            },
+            error: function (xhr, errorType, exception) {
+                var newTitle = $(xhr.responseText).filter('title').text();
+                alert(newTitle);
+            }
+        }) 
+    }
+
+    function DeleteApplication(id) {
+        $.ajax({
+            url: '/Application/DeleteApplication',
+            type: 'POST',
+            data: {
+                userId: localStorage.getItem("userId"), 
+                loanId: id,
+                token: localStorage.getItem("token")
+            },
+            success: function (result) {
+                if (result != null) {
+                    alert("ოპერაცია წარმატებით დასრულდა");
+                    getData()
+                    clearData()
+                } else {
+                    alert("განაცხადის წაშლა ვერ მოხერხდა, გთხოვთ სცადოთ თავიდან");
+                }
+                console.log(result);
+            },
+            error: function (xhr, errorType, exception) {
+                var newTitle = $(xhr.responseText).filter('title').text();
+                alert(newTitle);
+            }
+        })
+    }
+</script>

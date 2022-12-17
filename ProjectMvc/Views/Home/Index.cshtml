@@ -1,0 +1,190 @@
+﻿
+@{
+    ViewData["Title"] = "Home Page";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<link rel="stylesheet" href="~/css/style.css?v=@DateTime.Now.DayOfYear" type="text/css">
+<div class="fullRegistration" style="width: 670px;">
+    <nav>
+      <div class="nav nav-tabs" id="nav-tab" role="tablist">
+        <button class="nav-link active" id="nav-login-tab" data-bs-toggle="tab" data-bs-target="#Login" onclick="clearRegister()" type="button" role="tab" aria-controls="Login" aria-selected="true">Login</button>
+        <button class="nav-link" id="nav-register-tab" data-bs-toggle="tab" data-bs-target="#Register" type="button" role="tab" aria-controls="Register" aria-selected="false">Register</button>
+      </div>
+    </nav>
+
+    <div class="tab-content">
+        <div id="Login" class="tab-pane fade show active" role="tabpanel" aria-labelledby="nav-login-tab">
+            <div class="container">
+                <div class="title">Login</div>
+                <div class="content">
+                    <div class="user-details">
+                        <div class="input-box">
+                            <span class="details">Username</span>
+                            <input type="text" id="userName" placeholder="Enter your username" required>
+                        </div>
+                        <div class="input-box">
+                            <span class="details">Password</span>
+                            <input type="password" id="passWord" placeholder="Enter your password" required>
+                        </div>
+                    </div>
+                    <div class="signup-link" style="text-align: center;">
+                        Not a member? <input type="button" class="btn btn-outline-primary" id="Signup" value="Signup now" onclick="$('#nav-register-tab').click()"> 
+                    </div>
+                    <div class="button">
+                        <input type="button" class="buttons" id="login" value="Login" onclick="UserLogin()">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="Register" class="tab-pane fade" role="tabpanel" aria-labelledby="nav-register-tab">
+            <div class="container">
+                <div class="title">Registration</div>
+                <div class="content">
+                    <div class="user-details">
+
+                        <div>
+                            <div class="input-box">
+                                <span class="details">Full Name</span>
+                                <input type="text" id="fullName" placeholder="Enter your name" required>
+                            </div>
+                            <div class="input-box">
+                                <span class="details">Email</span>
+                                <input type="email" id="email" placeholder="Enter your email" required>
+                            </div>
+                            <div class="input-box">
+                                <span class="details">Username</span>
+                                <input type="text" id="userNameRegister" placeholder="Enter your username" required>
+                            </div>
+                            <div class="input-box">
+                                <span class="details">Personal Number</span>
+                                <input type="text" maxlength="11" minlength="11" id="personalNumber" placeholder="Enter your personal number" required>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="input-box">
+                                <span class="details">Phone Number</span>
+                                <input type="text" maxlength="9" minlength="9" id="number" placeholder="Enter your phone number" required>
+                            </div>
+                            <div class="input-box">
+                                <span class="details">Birth Date</span>
+                                <input type="date" id="birthDate" placeholder="Confirm your password" required>
+                            </div>
+                            <div class="input-box">
+                                <span class="details">Password</span>
+                                <input type="password" minlength="8" id="passwordRegister" placeholder="Enter your password" required>
+                            </div>
+                            <div class="input-box">
+                                <span class="details">Confirm Password</span>
+                                <input type="password" minlength="8" id="confirmPass" placeholder="Confirm your password" required>
+                            </div>
+                        </div>
+
+                        
+                    </div>
+                    <div class="button">
+                        <input type="button" class="buttons" id="register" onclick="UserRegister()" value="Register">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>    
+</div>
+
+<script>
+    function UserLogin() {
+        $.ajax({
+            url: '/Home/LoginCustomer',
+            type: 'POST',
+            data: {
+                userName: $("#userName").val(),
+                passWord: $("#passWord").val()
+            },
+            success: function (result) {
+                if ($.isNumeric(result) || result === null){
+                    alert('oops, something went wrong. try again.');
+                } else {
+                    GetUserId(result);
+                }
+            },
+            error: function (xhr, errorType, exception) {
+                var newTitle = $(xhr.responseText).filter('title').text();
+                alert(newTitle);
+            }
+        })
+    }
+
+    function GetUserId(token) {
+        $.ajax({
+            url: '/Home/GetUserId',
+            type: 'POST',
+            data: {
+                userName: $("#userName").val(),
+                passWord: $("#passWord").val()
+            },
+            success: function (result) {
+                console.log(result);
+                localStorage.setItem("userId", result);
+                localStorage.setItem("token", token);
+                location.href = '/Application/Index';
+            },
+            error: function (xhr, errorType, exception) {
+                var newTitle = $(xhr.responseText).filter('title').text();
+                alert(newTitle);
+            }
+        })
+    }
+
+    function UserRegister() {
+        console.log($("#passwordRegister").val())
+        console.log($("#confirmPass").val())
+
+        let userInfo = { 
+            userName: $("#userNameRegister").val(), 
+            password: $("#passwordRegister").val(),
+            mobile: $("#number").val(), 
+            fullName: $("#fullName").val(),
+            email: $("#email").val(),
+            personalNumber: $("#personalNumber").val(),
+            birthDate: $("#birthDate").val()
+        };
+        if ($("#passwordRegister").val() != $("#confirmPass").val()) {
+            alert("Passwords don't match to each other");
+        } else{
+            $.ajax({
+                url: '/Home/UserRegister',
+                type: 'POST',
+                data: {
+                    userInfo: userInfo
+                },
+                success: function (result) {
+                    if ($.isNumeric(result)) {
+                        $('#nav-login-tab').click();
+                        alert("congrats, you are our member! sign in");
+                        clearRegister()
+                    }else{
+                        alert(result);
+                    }
+                },
+                error: function (xhr, errorType, exception) {
+                    var newTitle = $(xhr.responseText).filter('title').text();
+                    alert(newTitle);
+                }
+            })
+        }
+    }
+
+    function clearRegister(){
+        $("#userName").val($("#userNameRegister").val());
+        $("#userNameRegister").val("");
+        $("#passwordRegister").val("");
+        $("#confirmPass").val("");
+        $("#number").val("");
+        $("#fullName").val("");
+        $("#email").val("");
+        $("#personalNumber").val("");
+        $("#birthDate").val("");
+    }
+</script>

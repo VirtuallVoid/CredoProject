@@ -1,0 +1,12 @@
+﻿{
+  "ErrorCodes": {
+    "1": "required",
+    "2": "should be int",
+    "3": "exceeds amount of characters",
+    "4": "less than amount chars",
+    "5": "should be double",
+    "6": "invalid date",
+    "200": "Success",
+    "400": "Failed to make Operation (unknown)"
+  }
+}
